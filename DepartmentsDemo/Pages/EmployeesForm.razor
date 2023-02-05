@@ -1,0 +1,165 @@
+@page "/EmployeesForm/{ParentDepartmentId}/{DepartmentId}"
+
+@using DepartmentsDemo.Dal.Interfaces
+@using DepartmentsDemo.Db.Entities
+@using DepartmentsDemo.Components
+
+@inject NavigationManager NavManager
+@inject IEfGenericRepository<Department> DepartmentRepository
+@inject IEfGenericRepository<Empoyee> EmployeeRepository
+
+<h3>Employees of department: @_department?.FullName</h3>
+
+<Confirmation @ref="DeleteConfirmation" 
+              ConfirmationChanged="ConfirmDelete_Click"
+              ConfirmationMessage=@($"Are you sure you want to delete department \"{_employeeToDelete?.FullName}\"?")
+              />
+
+<EmployeeEditorForm @ref="EditorForm" 
+                      ParentDepartment="_department" 
+                      EditCompleted="EditorFinished" 
+                      />
+
+
+@if (_employees == null)
+{
+    <p>
+        <em>Loading...</em>
+    </p>
+}
+else
+{
+        <div>
+            <button class="btn btn-primary" @onclick="GoToParentDepartment">Go to parent department</button>
+            <button class="btn btn-primary" @onclick="AddNewEmployee">Add new employee</button>
+        </div>
+
+        if (_employees.Any())
+        {
+            <div>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>SurName</th>
+                        <th>FirstName</th>
+                        <th>Patronymic</th>
+                        <th>DateOfBirth</th>
+                        <th>Age</th>
+                        <th>DocSeries</th>
+                        <th>DocNumber</th>
+                        <th>Position</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var employee in _employees)
+                    {
+                        <tr>
+                            <td>@employee.Id</td>
+                            <td>@employee.SurName</td>
+                            <td>@employee.FirstName</td>
+                            <td>@employee.Patronymic</td>
+                            <td>@employee.DateOfBirth.ToString("dd-MM-yyyy")</td>
+                            <td>@employee.Age</td>
+                            <td>@employee.DocSeries</td>
+                            <td>@employee.DocNumber</td>
+                            <td>@employee.Position</td>
+                            <td>
+                                <div>
+                                    <button class="btn btn-primary" @onclick="() => Edit(employee)">Edit</button>
+                                    <button class="btn btn-primary" @onclick="() => Delete(employee)">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div>
+                <p>@_department?.FullName has no employees</p>
+            </div>
+        }
+}
+
+@code {
+    
+    [Parameter]
+    public string? ParentDepartmentId { get; set; }
+    
+    [Parameter]
+    public string DepartmentId { get; set; } = null!;
+    
+    private Confirmation DeleteConfirmation { get; set; } = null!;
+    private EmployeeEditorForm EditorForm { get; set; } = null!;
+
+    private Department? _department;
+    private ICollection<Empoyee>? _employees;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var depId = Guid.Parse(DepartmentId);
+        
+        _department = await DepartmentRepository.GetByIdAsync(depId);
+        await LoadEmployees(depId);
+    }
+
+    private async Task LoadEmployees(Guid depId)
+    {
+        _employees = (await EmployeeRepository.GetAsync(e => e.DepartmentId == depId)).ToList();
+    }
+
+
+    private void GoToParentDepartment()
+    {
+        NavManager.NavigateTo($"/DepartmentForm/{ParentDepartmentId}");
+    }
+
+    private void AddNewEmployee()
+    {
+        EditorForm.AddNewEmployee();
+    }
+
+    private void Edit(Empoyee employee)
+    {
+        EditorForm.EditEmployee(employee);
+    }
+
+
+    private Empoyee? _employeeToDelete = null;
+    
+    private void Delete(Empoyee employee)
+    {
+        _employeeToDelete = employee;
+        DeleteConfirmation.Show();
+    }
+
+    private async Task ConfirmDelete_Click(bool deleteConfirmed)
+    {
+        if (!deleteConfirmed || _employeeToDelete == null) {
+            return;
+        }
+
+        EmployeeRepository.Remove(_employeeToDelete);
+        await EmployeeRepository.SaveChangesAsync();
+        _employeeToDelete = null;
+        
+        await LoadEmployees(Guid.Parse(DepartmentId));
+    }
+
+    private void EditorFinished(Empoyee? employee)
+    {
+        if (employee != null)
+        {
+            if (_employees?.Contains(employee) == false) {
+                _employees.Add(employee);
+            }
+            
+            StateHasChanged();
+        }
+    }
+    
+}

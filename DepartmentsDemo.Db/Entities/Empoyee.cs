@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace DepartmentsDemo.Db.Entities;
+﻿namespace DepartmentsDemo.Db.Entities;
 
 public partial class Empoyee
 {
@@ -25,3 +22,4 @@ public partial class Empoyee
 
     public virtual Department Department { get; set; } = null!;
 }
+

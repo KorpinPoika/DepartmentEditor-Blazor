@@ -1,6 +1,186 @@
 @page "/DepartmentForm"
-<h3>DepartmentForm</h3>
+@page "/DepartmentForm/{Id}"
+
+@using DepartmentsDemo.Components
+@using DepartmentsDemo.Dal.Interfaces
+@using DepartmentsDemo.Db.Entities
+
+@inject NavigationManager NavManager
+@inject IDepartmentService DepartmentService;
+@inject ILogger<DepartmentForm> Logger
+
+<h3>Departments</h3>
+
+<Confirmation @ref="DeleteConfirmation" 
+              ConfirmationChanged="ConfirmDelete_Click"
+              ConfirmationMessage=@($"Are you sure you want to delete department \"{_departmentToDelete?.FullName}\"?")
+              />
+
+<DepartmentEditorForm @ref="EditorForm" 
+                      ParentDepartment="_currentDepartment" 
+                      EditCompleted="EditorFinished" 
+                      />
+    
+
+@if (_departments == null)
+{
+    <p>
+        <em>Loading...</em>
+    </p>
+}
+else
+{
+    if (_currentDepartment == null)
+    {
+        <h4>No departmens detected</h4>
+    }
+    else
+    {
+        <div>
+            <h5>Department: @_currentDepartment.FullName</h5>
+            <button class="btn btn-primary" @onclick="GoToParent">Go to parent department</button>
+            <button class="btn btn-primary" @onclick="AddNewDepartment">Add new department</button>
+        </div>
+
+        if (HasSubDepartments(_currentDepartment))
+        {
+            <div>
+                <h6>Subdepartments:</h6>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Subdepartments</th>
+                        <th>Employees</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var department in GetSubDepartments(_currentDepartment))
+                    {
+                        <tr>
+                            <td>@department.Id</td>
+                            <td>@department.Name</td>
+                            <td>@department.Code</td>
+                            <td>
+                                <button class="btn btn-primary" @onclick="() => GoToSubDepartments(department)">
+                                    Show @GetSubDepartments(department)?.Count()
+                                </button>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary" @onclick="() => GoToEmployees(department)">
+                                    Show @department.NumberOfEmployees
+                                </button>
+                            </td>
+                            <td>
+                                <div>
+                                    <button class="btn btn-primary" @onclick="() => Edit(department)">Edit</button>
+                                    <button class="btn btn-primary" @onclick="() => Delete(department)">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div>
+                <p>@_currentDepartment.FullName has no subdepartments</p>
+            </div>
+        }
+    }
+}
 
 @code {
     
+    [Parameter]
+    public string? Id { get; set; }
+
+    private DepartmentEditorForm EditorForm { get; set; } = null!;
+    private Confirmation DeleteConfirmation { get; set; } = null!;
+
+    private Department _headDepartment = null!;
+    private Department _currentDepartment = null!;
+    private ICollection<Department>? _departments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDepartmentsAsync();
+    }
+
+    private async Task<IEnumerable<Department>> LoadAllDepartmentsAsync() => await DepartmentService.GetAsync();
+
+    private async Task LoadDepartmentsAsync()
+    {
+        _departments = (await LoadAllDepartmentsAsync()).ToList();
+        _headDepartment = _departments.FirstOrDefault(d => d.ParentDepartment == null) ?? new Department();
+        _currentDepartment = _departments?.FirstOrDefault(d => d.Id.ToString() == Id) ?? _headDepartment;
+    }
+
+    private bool HasSubDepartments(Department department) => _departments?.Any(d => d.ParentDepartmentId == department.Id) == true;
+    private IEnumerable<Department> GetSubDepartments(Department department) => _departments?.Where(d => d.ParentDepartmentId == department.Id).ToList() ?? Enumerable.Empty<Department>();
+
+    private void GoToSubDepartments(Department department)
+    {
+        _currentDepartment = department;
+    }
+
+    private void GoToParent()
+    {
+        _currentDepartment = _currentDepartment.ParentDepartment ?? _headDepartment;
+    }
+
+    private void AddNewDepartment()
+    {
+        Logger.LogInformation("Go to - add department activity");
+        EditorForm.AddNewDepartment();
+    }
+
+    private void Edit(Department department)
+    {
+        Logger.LogInformation("Go to - edit department activity");
+        EditorForm.EditDepartment(department);
+    }
+
+    private Department? _departmentToDelete = null;
+    
+    private void Delete(Department department)
+    {
+        Logger.LogInformation("Try to delete department");
+
+        _departmentToDelete = department;
+        DeleteConfirmation.Show();
+    }
+
+    private async Task ConfirmDelete_Click(bool deleteConfirmed)
+    {
+        if (!deleteConfirmed || _departmentToDelete == null) {
+            return;
+        }
+        
+        await DepartmentService.DeleteAsync(_departmentToDelete);
+        _departmentToDelete = null;
+        await LoadDepartmentsAsync();
+    }
+
+    private void EditorFinished(Department? department)
+    {
+        if (department != null)
+        {
+            if (_departments?.Contains(department) == false) {
+                _departments.Add(department);
+            }
+            
+            StateHasChanged();
+        }
+    }
+
+    private void GoToEmployees(Department department)
+    {
+        NavManager.NavigateTo($"/EmployeesForm/{_currentDepartment?.Id}/{department.Id}");
+    }
 }

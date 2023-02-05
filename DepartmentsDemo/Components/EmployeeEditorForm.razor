@@ -1,0 +1,143 @@
+@using DepartmentsDemo.Db.Entities
+@using DepartmentsDemo.Models
+@using DepartmentsDemo.Dal.Interfaces
+
+@inject IEfGenericRepository<Empoyee> EmployeeRepository
+
+@if (ShowForm)
+{
+    <div class="modal" tabindex="-1" role="dialog" style="display:block" id="taskModal">
+        <div class="modal-dialog shadow-lg bg-white rounded" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                </div>
+
+                <div class="modal-body">
+                    <EditForm Model="@_employeeModel" OnValidSubmit="() => OnConfirmationChange(true)">
+                        <DataAnnotationsValidator  />
+        
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">Surname: </label>
+                            <InputText class="col-8 form-control" @bind-Value="_employeeModel.SurName" />
+                            <ValidationMessage For="@(() => _employeeModel.SurName)" />
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">First name: </label>
+                            <InputText class="col-8 form-control" @bind-Value="_employeeModel.FirstName" />
+                            <ValidationMessage For="@(() => _employeeModel.FirstName)" />
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">Patronymic: </label>
+                            <InputText class="col-8 form-control" @bind-Value="_employeeModel.Patronymic" />
+                            <ValidationMessage For="@(() => _employeeModel.Patronymic)" />
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">Date of birth: </label>
+                            <InputDate class="col-8 form-control" @bind-Value="_employeeModel.DateOfBirth" ParsingErrorMessage="Must be a date" />
+                            <ValidationMessage For="@(() => _employeeModel.DateOfBirth)" />
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">Document series: </label>
+                            <InputText class="col-8 form-control" @bind-Value="_employeeModel.DocSeries" />
+                            <ValidationMessage For="@(() => _employeeModel.DocSeries)" />
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">Document number: </label>
+                            <InputText class="col-8 form-control" @bind-Value="_employeeModel.DocNumber" />
+                            <ValidationMessage For="@(() => _employeeModel.DocNumber)" />
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">Position: </label>
+                            <InputText class="col-8 form-control" @bind-Value="_employeeModel.Position" />
+                            <ValidationMessage For="@(() => _employeeModel.Position)" />
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                            <button type="reset" class="btn btn-secondary" @onclick="() => OnConfirmationChange(false)">Cancel</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    
+    [Parameter]
+    public string Title { get; set; } = "Add new department";
+    
+    [Parameter]
+    public Department? ParentDepartment { get; set; }
+    
+    [Parameter]
+    public EventCallback<Empoyee?> EditCompleted { get; set; }
+    
+    private bool ShowForm { get; set; }
+    
+    private EmployeeModel _employeeModel = new();
+    private Empoyee? _employee;
+    
+    public void AddNewEmployee() => Show(null);
+    public void EditEmployee(Empoyee employee) => Show(employee);
+    
+    private void Show(Empoyee? employee)
+    {
+        Title = employee == null ? "Add new employee" : "Edit employee";
+        
+        _employee = employee ?? new Empoyee();
+        InitModel(_employee);
+        
+        ShowForm = true;
+        StateHasChanged();
+    }
+
+    private void InitModel(Empoyee employee)
+    {
+        _employeeModel = new EmployeeModel {
+            FirstName = employee.FirstName,
+            SurName = employee.SurName,
+            Patronymic = employee.Patronymic,
+            DateOfBirth = employee.DateOfBirth,
+            DocSeries = employee.DocSeries,
+            DocNumber = employee.DocNumber,
+            Position = employee.Position
+        };
+    }
+
+    private async Task OnConfirmationChange(bool isSubmitted)
+    {
+        ShowForm = false;
+
+        if (isSubmitted) {
+            await SaveChangesAsync(_employeeModel, ParentDepartment!, _employee!);
+        }
+        
+        await EditCompleted.InvokeAsync(isSubmitted? _employee : null);
+    }
+
+    private async Task SaveChangesAsync(EmployeeModel employeeModel, Department parentDepartment, Empoyee employee)
+    {
+        employee.DepartmentId = parentDepartment.Id;
+        employee.FirstName = employeeModel.FirstName;
+        employee.SurName = employeeModel.SurName;
+        employee.Patronymic = employeeModel.Patronymic;
+        employee.DateOfBirth = employeeModel.DateOfBirth;
+        employee.DocSeries = employeeModel.DocSeries;
+        employee.DocNumber = employeeModel.DocNumber;
+        employee.Position = employeeModel.Position;
+
+        if (employee.Id == default) {
+            EmployeeRepository.Create(employee);
+        }
+        else {
+            EmployeeRepository.Update(employee);
+        }
+
+        await EmployeeRepository.SaveChangesAsync();
+    }
+
+
+}

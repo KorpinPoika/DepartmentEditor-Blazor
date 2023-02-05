@@ -58,7 +58,7 @@
     
     private void Show(Department? department)
     {
-        Title = _department == null ? "Add new department" : "Edit department";
+        Title = department == null ? "Add new department" : "Edit department";
         
         _department = department ?? new Department();
         InitModel(_department);
@@ -66,9 +66,9 @@
         ShowForm = true;
         StateHasChanged();
     }
-    
-    
-    protected async Task OnConfirmationChange(bool isSubmitted)
+
+
+    private async Task OnConfirmationChange(bool isSubmitted)
     {
         ShowForm = false;
 
