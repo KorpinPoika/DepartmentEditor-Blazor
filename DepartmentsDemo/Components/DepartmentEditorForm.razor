@@ -1,0 +1,98 @@
+@using DepartmentsDemo.Dal.Interfaces
+@using DepartmentsDemo.Db.Entities
+@using DepartmentsDemo.Models
+
+@inject IDepartmentService DepartmentService;
+
+@if (ShowForm)
+{
+    <div class="modal" tabindex="-1" role="dialog" style="display:block" id="taskModal">
+        <div class="modal-dialog shadow-lg bg-white rounded" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                </div>
+
+                <div class="modal-body">
+                    <EditForm Model="@_departmentModel" OnValidSubmit="() => OnConfirmationChange(true)">
+                        <DataAnnotationsValidator  />
+                        <ValidationSummary />
+        
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">Name: </label>
+                            <InputText class="col-8 form-control" @bind-Value="_departmentModel.Name" />
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-3 col-form-label">Code: </label>
+                            <InputText class="col-8 form-control" @bind-Value="_departmentModel.Code" />
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Submit</button>
+                            <button type="reset" class="btn btn-secondary" @onclick="() => OnConfirmationChange(false)">Cancel</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Add new department";
+    
+    [Parameter]
+    public Department? ParentDepartment { get; set; }
+    
+    [Parameter]
+    public EventCallback<Department?> EditCompleted { get; set; }
+
+    private bool ShowForm { get; set; }
+    
+    private DepartmentModel _departmentModel = new();
+    private Department? _department;
+
+
+    public void AddNewDepartment() => Show(null);
+    public void EditDepartment(Department department) => Show(department);
+    
+    private void Show(Department? department)
+    {
+        Title = _department == null ? "Add new department" : "Edit department";
+        
+        _department = department ?? new Department();
+        InitModel(_department);
+        
+        ShowForm = true;
+        StateHasChanged();
+    }
+    
+    
+    protected async Task OnConfirmationChange(bool isSubmitted)
+    {
+        ShowForm = false;
+
+        if (isSubmitted) {
+            await SaveChangesAsync(_departmentModel, ParentDepartment, _department!);
+        }
+        
+        await EditCompleted.InvokeAsync(isSubmitted? _department : null);
+    }
+
+    private void InitModel(Department department)
+    {
+        _departmentModel = new DepartmentModel {
+            Name = department.Name,
+            Code = department.Code
+        };
+    }
+
+    private Task SaveChangesAsync(DepartmentModel departmentModel, Department? parentDepartment, Department department)
+    {
+        department.Name = departmentModel.Name;
+        department.Code = departmentModel.Code;
+        department.ParentDepartmentId = parentDepartment?.Id;
+        
+        return DepartmentService.CreateOrUpdateAsync(department);
+    }
+}
