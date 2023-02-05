@@ -13,4 +13,9 @@
       </Content>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\DepartmentsDemo.Dal\DepartmentsDemo.Dal.csproj" />
+      <ProjectReference Include="..\DepartmentsDemo.Db\DepartmentsDemo.Db.csproj" />
+    </ItemGroup>
+
 </Project>
