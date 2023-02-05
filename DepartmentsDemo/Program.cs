@@ -4,8 +4,6 @@ using DepartmentsDemo.Dal.Repositories;
 using DepartmentsDemo.Dal.Services;
 using DepartmentsDemo.Db.Context;
 using DepartmentsDemo.Db.Entities;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
