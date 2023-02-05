@@ -26,6 +26,6 @@ public class AgeAttribute: ValidationAttribute
 			return new ValidationResult($"The age {age} years is unreal");
 		}
 		
-		return ValidationResult.Success;
+		return null;
 	}
 }
