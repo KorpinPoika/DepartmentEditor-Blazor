@@ -3,8 +3,9 @@
 @inject NavigationManager NavManager
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        NavManager.NavigateTo("/DepartmentForm");
+        await Task.Run(() => NavManager.NavigateTo("/DepartmentForm"));
     }
+
 }
