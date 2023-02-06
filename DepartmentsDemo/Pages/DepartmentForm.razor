@@ -142,7 +142,7 @@ else
             _isLoadingFailed = true;
             _errorMessage = ex.Message;
             Error?.ProcessError(ex, "Loading departments list failed");
-            ErrorNotification.Show($"Loading departments list failed: {ex.Message}");
+            ErrorNotification?.Show($"Loading departments list failed: {ex.Message}");
         }
     }
 
