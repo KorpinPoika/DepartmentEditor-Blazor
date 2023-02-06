@@ -64,6 +64,10 @@
     </div>
 }
 
+<NotificationForm @ref="ErrorNotification" 
+                  NotificationTitle="Error"
+                  />
+
 @code {
     
     [Parameter]
@@ -74,6 +78,12 @@
     
     [Parameter]
     public EventCallback<Empoyee?> EditCompleted { get; set; }
+    
+    [CascadingParameter]
+    public Error? Error { get; set; }
+
+    private NotificationForm ErrorNotification { get; set; } = null!;
+    
     
     private bool ShowForm { get; set; }
     
@@ -111,11 +121,19 @@
     {
         ShowForm = false;
 
-        if (isSubmitted) {
-            await SaveChangesAsync(_employeeModel, ParentDepartment!, _employee!);
-        }
+        try
+        {
+            if (isSubmitted) {
+                await SaveChangesAsync(_employeeModel, ParentDepartment!, _employee!);
+            }
         
-        await EditCompleted.InvokeAsync(isSubmitted? _employee : null);
+            await EditCompleted.InvokeAsync(isSubmitted? _employee : null);
+        }
+        catch (Exception ex)
+        {
+            Error?.ProcessError(ex, "Saving is failed");
+            ErrorNotification.Show($"Saving is failed with message: {ex.Message}");
+        }
     }
 
     private async Task SaveChangesAsync(EmployeeModel employeeModel, Department parentDepartment, Empoyee employee)

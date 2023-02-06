@@ -10,6 +10,10 @@
 
 <h3>Employees of department: @_department?.FullName</h3>
 
+<NotificationForm @ref="ErrorNotification" 
+                  NotificationTitle="Error"
+                  />
+
 <Confirmation @ref="DeleteConfirmation" 
               ConfirmationChanged="ConfirmDelete_Click"
               ConfirmationMessage=@($"Are you sure you want to delete department \"{_employeeToDelete?.FullName}\"?")
@@ -21,7 +25,13 @@
                       />
 
 
-@if (_employees == null)
+@if (_isLoadingFailed)
+{
+    <p>
+        <em>Loading failed due @_errorMessage</em>
+    </p>
+}
+else if (_employees == null)
 {
     <p>
         <em>Loading...</em>
@@ -93,18 +103,34 @@ else
     [Parameter]
     public string DepartmentId { get; set; } = null!;
     
+    [CascadingParameter]
+    public Error? Error { get; set; }
+    
+    private NotificationForm ErrorNotification { get; set; } = null!;
     private Confirmation DeleteConfirmation { get; set; } = null!;
     private EmployeeEditorForm EditorForm { get; set; } = null!;
 
     private Department? _department;
     private ICollection<Empoyee>? _employees;
+    private bool _isLoadingFailed = false;
+    private string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        var depId = Guid.Parse(DepartmentId);
+        try
+        {
+            var depId = Guid.Parse(DepartmentId);
         
-        _department = await DepartmentRepository.GetByIdAsync(depId);
-        await LoadEmployees(depId);
+            _department = await DepartmentRepository.GetByIdAsync(depId);
+            await LoadEmployees(depId);
+        }
+        catch (Exception ex)
+        {
+            _isLoadingFailed = true;
+            _errorMessage = ex.Message;
+            Error?.ProcessError(ex, "Loading employees list failed");
+            ErrorNotification.Show($"Loading employees list failed: {ex.Message}");
+        }
     }
 
     private async Task LoadEmployees(Guid depId)
@@ -143,11 +169,19 @@ else
             return;
         }
 
-        EmployeeRepository.Remove(_employeeToDelete);
-        await EmployeeRepository.SaveChangesAsync();
-        _employeeToDelete = null;
+        try
+        {
+            EmployeeRepository.Remove(_employeeToDelete);
+            await EmployeeRepository.SaveChangesAsync();
+            _employeeToDelete = null;
         
-        await LoadEmployees(Guid.Parse(DepartmentId));
+            await LoadEmployees(Guid.Parse(DepartmentId));
+        }
+        catch (Exception ex)
+        {
+            Error?.ProcessError(ex, "Deleting employee failed");
+            ErrorNotification.Show($"Deleting employee failed: {ex.Message}");
+        }
     }
 
     private void EditorFinished(Empoyee? employee)

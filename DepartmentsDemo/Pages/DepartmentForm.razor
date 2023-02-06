@@ -11,6 +11,10 @@
 
 <h3>Departments</h3>
 
+<NotificationForm @ref="ErrorNotification" 
+                  NotificationTitle="Error"
+                  />
+
 <Confirmation @ref="DeleteConfirmation" 
               ConfirmationChanged="ConfirmDelete_Click"
               ConfirmationMessage=@($"Are you sure you want to delete department \"{_departmentToDelete?.FullName}\"?")
@@ -21,8 +25,13 @@
                       EditCompleted="EditorFinished" 
                       />
     
-
-@if (_departments == null)
+@if (_isLoadingFailed)
+{
+    <p>
+        <em>Loading failed due @_errorMessage</em>
+    </p>
+}
+else if (_departments == null)
 {
     <p>
         <em>Loading...</em>
@@ -99,13 +108,19 @@ else
     
     [Parameter]
     public string? Id { get; set; }
-
+    
+    [CascadingParameter]
+    public Error? Error { get; set; }
+    
+    private NotificationForm ErrorNotification { get; set; } = null!;
     private DepartmentEditorForm EditorForm { get; set; } = null!;
     private Confirmation DeleteConfirmation { get; set; } = null!;
 
     private Department _headDepartment = null!;
     private Department _currentDepartment = null!;
     private ICollection<Department>? _departments;
+    private bool _isLoadingFailed = false;
+    private string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,9 +131,19 @@ else
 
     private async Task LoadDepartmentsAsync()
     {
-        _departments = (await LoadAllDepartmentsAsync()).ToList();
-        _headDepartment = _departments.FirstOrDefault(d => d.ParentDepartment == null) ?? new Department();
-        _currentDepartment = _departments?.FirstOrDefault(d => d.Id.ToString() == Id) ?? _headDepartment;
+        try
+        {
+            _departments = (await LoadAllDepartmentsAsync()).ToList();
+            _headDepartment = _departments.FirstOrDefault(d => d.ParentDepartment == null) ?? new Department();
+            _currentDepartment = _departments?.FirstOrDefault(d => d.Id.ToString() == Id) ?? _headDepartment;
+        }
+        catch (Exception ex)
+        {
+            _isLoadingFailed = true;
+            _errorMessage = ex.Message;
+            Error?.ProcessError(ex, "Loading departments list failed");
+            ErrorNotification.Show($"Loading departments list failed: {ex.Message}");
+        }
     }
 
     private bool HasSubDepartments(Department department) => _departments?.Any(d => d.ParentDepartmentId == department.Id) == true;
@@ -161,10 +186,18 @@ else
         if (!deleteConfirmed || _departmentToDelete == null) {
             return;
         }
-        
-        await DepartmentService.DeleteAsync(_departmentToDelete);
-        _departmentToDelete = null;
-        await LoadDepartmentsAsync();
+
+        try
+        {
+            await DepartmentService.DeleteAsync(_departmentToDelete);
+            _departmentToDelete = null;
+            await LoadDepartmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            Error?.ProcessError(ex, "Deleting department failed");
+            ErrorNotification.Show($"Deleting department failed: {ex.Message}");
+        }
     }
 
     private void EditorFinished(Department? department)

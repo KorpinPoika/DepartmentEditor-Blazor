@@ -4,6 +4,7 @@
 
 @inject IDepartmentService DepartmentService;
 
+
 @if (ShowForm)
 {
     <div class="modal" tabindex="-1" role="dialog" style="display:block" id="taskModal">
@@ -37,6 +38,11 @@
     </div>
 }
 
+<NotificationForm @ref="ErrorNotification" 
+                  NotificationTitle="Error"
+                  />
+
+
 @code {
     [Parameter]
     public string Title { get; set; } = "Add new department";
@@ -47,6 +53,11 @@
     [Parameter]
     public EventCallback<Department?> EditCompleted { get; set; }
 
+    [CascadingParameter]
+    public Error? Error { get; set; }
+
+    private NotificationForm ErrorNotification { get; set; } = null!;
+    
     private bool ShowForm { get; set; }
     
     private DepartmentModel _departmentModel = new();
@@ -72,11 +83,19 @@
     {
         ShowForm = false;
 
-        if (isSubmitted) {
-            await SaveChangesAsync(_departmentModel, ParentDepartment, _department!);
-        }
+        try
+        {
+            if (isSubmitted) {
+                await SaveChangesAsync(_departmentModel, ParentDepartment, _department!);
+            }
         
-        await EditCompleted.InvokeAsync(isSubmitted? _department : null);
+            await EditCompleted.InvokeAsync(isSubmitted? _department : null);
+        }
+        catch (Exception ex)
+        {
+            Error?.ProcessError(ex, "Saving is failed");
+            ErrorNotification.Show($"Saving is failed with message: {ex.Message}");
+        }
     }
 
     private void InitModel(Department department)
