@@ -10,5 +10,6 @@ public partial class Empoyee
 	
 	[NotMapped]
 	public string FullName => $"{SurName} {FirstName} {Patronymic}";
+
 	
 }
